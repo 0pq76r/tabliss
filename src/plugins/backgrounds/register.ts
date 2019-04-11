@@ -6,6 +6,7 @@ import { Dribbble, DribbbleSettings } from './dribbble';
 import { Giphy, GiphySettings } from './giphy';
 import { Gradient, GradientSettings } from './gradient';
 import { Image, ImageSettings } from './image';
+import { Reddit, RedditSettings } from './reddit';
 import { Unsplash, UnsplashSettings } from './unsplash';
 
 registerPlugin({
@@ -46,6 +47,14 @@ registerPlugin({
   title: 'Upload Images',
   Dashboard: Image,
   Settings: ImageSettings,
+});
+
+registerPlugin({
+  key: 'extra/backgrounds/reddit',
+  type: Type.BACKGROUND,
+  title: 'reddit',
+  Dashboard: Reddit,
+  Settings: RedditSettings,
 });
 
 registerPlugin({

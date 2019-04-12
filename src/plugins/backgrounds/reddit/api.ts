@@ -25,14 +25,19 @@ export const getImage = async function (
   let images = res.data.children
         .filter( ( o: any ) => {
             try {
-                return o.data.preview.images[0].source.width >= 1024 &&
-                    o.data.preview.images[0].source.width > o.data.preview.images[0].source.height;
+                return (o.data.preview.images[0].source.width >= 1024 &&
+                        o.data.preview.images[0].source.width > o.data.preview.images[0].source.height) ||
+                    o.data.media_embed.content.includes( `gfycat.com` );
             } catch ( e ) {
                 return false;
             }
         })
         .map( ( o: any ) => { return o.data; } );
   let img = images[Math.floor(Math.random() * images.length)];
+  if ( img.url.includes( `https://gfycat.com/` ) ) {
+    img.url = decodeURIComponent(img.media_embed.content
+                                 .replace(/.*image=([^&]*-size_restricted.gif).*/, '$1'));
+  }
   let data;
   try {
       data = await (await fetch(img.url)).blob();

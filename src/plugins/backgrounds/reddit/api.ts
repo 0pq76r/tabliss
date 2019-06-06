@@ -12,12 +12,15 @@ export const getImage = async function (
   let url = 'https://www.reddit.com/';
   switch (by) {
     case By.FEED:
-      url += feed;
+      let f = feed.replace(`/?`, `/.json?`);
+      url += f;
       break;
     default:
       url += `r/wallpapers`;
   }
-  url += `/.json`;
+
+  if( ! url.includes( `/.json`) )
+    url += `/.json`;
 
   // Fetch from API
   pushCallback();
@@ -34,15 +37,17 @@ export const getImage = async function (
         })
         .map( ( o: any ) => { return o.data; } );
   let img = images[Math.floor(Math.random() * images.length)];
+  let data;
   if ( img.url.includes( `https://gfycat.com/` ) ) {
     img.url = decodeURIComponent(img.media_embed.content
-                                 .replace(/.*image=([^&]*-size_restricted.gif).*/, '$1'));
-  }
-  let data;
-  try {
-      data = await (await fetch(img.url)).blob();
-  } catch ( e ) {
-      data = img.url;
+                                 .replace(/.*thumbs.([^&]*)-size_restricted.gif.*/, 'https://giant.$1.gif'));
+    data = img.url;
+  } else {
+    try {
+        data = await (await fetch(img.url)).blob();
+    } catch ( e ) {
+        data = img.url;
+    }
   }
   popCallback();
 

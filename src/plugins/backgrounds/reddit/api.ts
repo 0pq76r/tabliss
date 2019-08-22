@@ -1,18 +1,18 @@
-import { By, Image, Settings } from './interfaces';
+import { API } from '../../types';
+import { Image, Data } from './types';
 
 export const getImage = async function (
-  settings: Settings,
-  pushCallback: Function,
-  popCallback: Function,
+  settings: Pick<Data, 'by' | 'collections' | 'featured' | 'search'>,
+  loader: API['loader'],
 ): Promise<Image> {
   // Setup
-  const { by, feed } = settings;
+  const { by, collections } = settings;
 
   // Build search url
   let url = 'https://www.reddit.com/';
   switch (by) {
-    case By.FEED:
-      let f = feed.replace(`/?`, `/.json?`);
+    case 'collections':
+      let f = collections.replace(`/?`, `/.json?`);
       url += f;
       break;
     default:
@@ -23,7 +23,7 @@ export const getImage = async function (
     url += `/.json`;
 
   // Fetch from API
-  pushCallback();
+  loader.push();
   const res = await (await fetch(url)).json();
   let images = res.data.children
         .filter( ( o: any ) => {
@@ -49,7 +49,7 @@ export const getImage = async function (
         data = img.url;
     }
   }
-  popCallback();
+  loader.pop();
 
   return {
     data: data,

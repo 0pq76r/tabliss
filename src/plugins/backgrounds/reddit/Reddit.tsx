@@ -1,176 +1,41 @@
-import debounce from 'lodash-es/debounce';
-import get from 'lodash-es/get';
-import * as React from 'react';
-import { ActionCreator, connect } from 'react-redux';
-import { Action, popPending, pushPending, RootState } from '../../../data';
+import React, { FC } from 'react';
+
+import { useObjectUrl, useRotatingCache } from '../../../hooks';
+import Backdrop from '../../../views/shared/Backdrop';
 import { getImage } from './api';
-import { defaultProps } from './constants';
-import { Image, Settings } from './interfaces';
+import { Props, defaultData } from './types';
 import RedditCredit from './RedditCredit';
 import './Reddit.sass';
 
-interface Props extends Settings {
-  focus: boolean;
-  local: Local;
-  popPending: ActionCreator<Action>;
-  pushPending: ActionCreator<Action>;
-  updateLocal: (state: Partial<Local>) => void;
-}
+const Reddit: FC<Props> = ({
+  cache,
+  data = defaultData,
+  loader,
+  setCache,
+}) => {
+  const cacheArea = { cache, setCache };
+  const image = useRotatingCache(
+    () => getImage(data, loader),
+    cacheArea,
+    data.timeout * 1000,
+    [data.by, data.collections, data.featured, data.search],
+  );
+  let url_str = "";
+  if (image && !(image.data instanceof Blob))
+    url_str = image.data;
+  const url = image && (image.data instanceof Blob) ?
+        useObjectUrl(image && image.data) : url_str;
 
-interface Local {
-  current?: Image & {
-    timestamp: number;
-  };
-  next?: Image;
-}
+  return (
+    <div className="Reddit fullscreen">
+      <Backdrop
+        className="image fullscreen"
+        style={{ backgroundImage: url && `url(${url})` }}
+      />
 
-interface State {
-  current?: Image & {
-    src: string;
-  };
-}
+      {cache && <RedditCredit image={cache.now} />}
+    </div>
+  );
+};
 
-class Reddit extends React.PureComponent<Props, State> {
-  static defaultProps: Partial<Props> = defaultProps;
-  state: State = {};
-  private refreshDebounced = debounce(this.refresh, 250);
-
-  componentWillMount() {
-    const shouldRotate = this.shouldRotate();
-
-    this.getImage()
-      .then(this.setCurrentImage)
-      .then(() => {
-        if (shouldRotate) {
-          this.fetchImage().then(this.setNextImage);
-        }
-      })
-      .catch(() => this.refresh(this.props));
-  }
-
-  componentWillReceiveProps(nextProps: Props) {
-    if (nextProps.by !== this.props.by) {
-      this.refreshDebounced.cancel();
-      this.refresh(nextProps);
-    }
-
-    if (nextProps.feed !== this.props.feed) {
-      this.refreshDebounced(nextProps);
-    }
-  }
-
-  render() {
-    let { blur, darken, focus } = this.props;
-
-    // Migrate some legacy values
-    if (blur === true) {
-      blur = 5;
-    }
-    if (darken === true) {
-      darken = 10;
-    }
-
-    let styles: React.CSSProperties = this.state.current
-      ? { backgroundImage: `url(${this.state.current.src})` }
-      : { opacity: 0 };
-
-    if (blur && ! focus) {
-      styles = {
-        ...styles,
-        filter: `blur(${blur}px)`,
-        transform: `scale(${(blur / 500) + 1})`,
-      };
-    }
-
-    return (
-      <div className="Reddit fullscreen">
-        <div className="image fullscreen" style={styles} />
-        {darken && ! focus && (
-          <div className="fullscreen" style={{ backgroundColor: `rgba(0, 0, 0, ${darken * 0.01})` }} />
-        )}
-        {this.state.current && <RedditCredit image={this.state.current} />}
-      </div>
-    );
-  }
-
-  /**
-   * Get image to display.
-   */
-  private async getImage() {
-    if (this.shouldRotate()) {
-      return get(this.props, 'local.next.data') instanceof Blob
-        ? get(this.props, 'local.next')
-        : await this.fetchImage();
-    } else {
-      return get(this.props, 'local.current.data') instanceof Blob
-        ? get(this.props, 'local.current')
-        : await this.fetchImage();
-    }
-  }
-
-  /**
-   * Set the current image.
-   */
-  private setCurrentImage = (image: Image & { timestamp?: number }) => {
-    let src;
-    if ( typeof image.data === "string" ) {
-       src = image.data;
-    } else {
-      src = URL.createObjectURL(image.data);
-    }
-    const timestamp = image.timestamp || Date.now();
-
-    this.setState({ current: {
-      ...image as Image, src,
-    }});
-    this.props.updateLocal({ current: {
-      ...image, timestamp,
-    }});
-    
-    let img = new Image();
-    img.onerror = () => {
-        this.refresh(this.props);
-    };
-    img.src = src;
-  }
-
-  /**
-   * Set the next image.
-   */
-  private setNextImage = (image: Image) => {
-    this.props.updateLocal({ next: image });
-  }
-
-  /**
-   * Should we rotate the currennt image.
-   */
-  private shouldRotate(props: Props = this.props) {
-    return get(props, 'local.current.timestamp', 0) + (this.props.timeout * 1000) < Date.now();
-  }
-
-  /**
-   * Refresh current and next images.
-   * (when settings update, for instance)
-   */
-  private refresh(props: Props = this.props) {
-    this.fetchImage(props).then(this.setCurrentImage);
-    this.fetchImage(props).then(this.setNextImage);
-  }
-
-  /**
-   * Fetch an image from the Reddit API.
-   */
-  private fetchImage(props: Props = this.props) {
-    return getImage(
-      props,
-      this.props.pushPending,
-      this.props.popPending,
-    );
-  }
-}
-
-const mapStateToProps = (state: RootState) => ({ focus: state.ui.focus });
-
-const mapDispatchToProps = { popPending, pushPending };
-
-export default connect(mapStateToProps, mapDispatchToProps)(Reddit);
+export default Reddit;

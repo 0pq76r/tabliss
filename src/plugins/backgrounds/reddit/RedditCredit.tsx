@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { FormattedMessage } from 'react-intl';
-import { Image } from './interfaces';
+
+import { Image } from './types';
 
 interface Props {
   image: Image;
